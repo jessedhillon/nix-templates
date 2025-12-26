@@ -1,0 +1,109 @@
+{
+  description = "Some Python project";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    fp.url = "github:hercules-ci/flake-parts";
+    devshell = {
+      url = "github:numtide/devshell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  outputs = inputs:
+    let
+      projectName = "project-name";
+    in
+    inputs.fp.lib.mkFlake { inherit inputs; } {
+      systems = inputs.nixpkgs.lib.systems.flakeExposed;
+      perSystem = { system, pkgs, lib, ... }: {
+        _module.args.pkgs = import inputs.nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
+          overlays = [
+            inputs.devshell.overlays.default
+          ];
+        };
+        devShells.default = pkgs.devshell.mkShell {
+          name = "${projectName}";
+          motd = "{32}${projectName} activated{reset}\n$(type -p menu &>/dev/null && menu)\n";
+
+          env = [
+            {
+              name = "LD_LIBRARY_PATH" ;
+              value = pkgs.lib.makeLibraryPath [
+                pkgs.file
+                pkgs.stdenv.cc.cc.lib
+              ];
+            }
+          ];
+
+          packages = with pkgs; [
+            (python313.withPackages (
+              pypkgs: with pypkgs; [
+                pip
+                isort
+              ]
+            ))
+            gh
+            poetry
+            pre-commit
+            process-compose
+            pyright
+            ruff
+          ];
+
+          commands = [
+            {
+              name = "install-hooks";
+              command = ''
+              if [[ -f ".pre-commit-config.yaml" ]]; then
+                pushd $PRJ_ROOT
+                pre-commit install --overwrite --install-hooks
+                popd
+              fi'';
+              help = "install or update pre-commit hooks";
+            }
+
+            {
+              name = "format";
+              command = ''
+              pushd $PRJ_ROOT;
+              (ruff format -q ${projectName}/ && isort -q --dt ${projectName}/);
+              popd'';
+              help = "apply ruff, isort formatting";
+            }
+
+            {
+              name = "check";
+              command = ''
+              pushd $PRJ_ROOT;
+              echo "${projectName}"
+              (ruff check ${projectName}/ || true);
+              pyright ${projectName}/;
+
+              if [[ -d "migrations/" ]]; then
+                echo "migrations"
+                (ruff check migrations/ || true);
+                pyright migrations/;
+              fi
+
+              if [[ -d "tests/" ]]; then
+                echo "tests"
+                (ruff check tests/ || true);
+                pyright tests/;
+              fi
+              popd'';
+              help = "run ruff linter, pyright type checker";
+            }
+
+            {
+              name = "up";
+              command = "process-compose up";
+              help = "bring up services stack";
+            }
+          ];
+        };
+      };
+    };
+}
