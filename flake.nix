@@ -7,7 +7,7 @@
     nixpkgs.url = "nixpkgs";
   };
 
-  description = "Basic project templtates";
+  description = "Basic project templates";
 
   outputs =
     { devshell, nixpkgs, ... }:
