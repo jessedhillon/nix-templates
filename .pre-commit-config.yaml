@@ -1,0 +1,15 @@
+repos:
+- repo: local
+  hooks:
+  - id: nix-fmt
+    name: nix fmt
+    entry: nix fmt
+    language: system
+    files: '\.nix$'
+    pass_filenames: false
+    stages: [pre-commit]
+- repo: https://github.com/jessedhillon/conventional-msg
+  rev: "0.2.0"
+  hooks:
+  - id: conventional-msg
+    stages: [commit-msg]
