@@ -1,6 +1,6 @@
 repos:
 - repo: https://github.com/jessedhillon/conventional-msg
-  rev: "0.1.1"
+  rev: "0.2.0"
   hooks:
   - id: conventional-msg
     stages: [commit-msg]
